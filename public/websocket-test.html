@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebSocket Test Client</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .status.disconnected {
+            background: #ef4444;
+        }
+
+        .status.connected {
+            background: #10b981;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .control-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 14px;
+        }
+
+        .input-group input {
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-connect {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-connect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .btn-disconnect {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+
+        .btn-disconnect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
+        .btn-clear {
+            background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+            color: white;
+        }
+
+        .btn-clear:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(107, 114, 128, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .test-actions {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 20px 0;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+        }
+
+        .test-actions h3 {
+            grid-column: 1 / -1;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+
+        .test-btn {
+            padding: 10px;
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .test-btn:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+        }
+
+        .messages {
+            background: #1f2937;
+            color: #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .message {
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            border-left: 4px solid;
+        }
+
+        .message.sent {
+            background: rgba(59, 130, 246, 0.1);
+            border-left-color: #3b82f6;
+        }
+
+        .message.received {
+            background: rgba(16, 185, 129, 0.1);
+            border-left-color: #10b981;
+        }
+
+        .message.error {
+            background: rgba(239, 68, 68, 0.1);
+            border-left-color: #ef4444;
+        }
+
+        .message.info {
+            background: rgba(251, 191, 36, 0.1);
+            border-left-color: #fbbf24;
+        }
+
+        .timestamp {
+            color: #9ca3af;
+            font-size: 11px;
+            margin-right: 8px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f9fafb;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .stat-card .label {
+            font-size: 12px;
+            color: #6b7280;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔌 WebSocket Test Client</h1>
+            <div id="status" class="status disconnected">● DISCONNECTED</div>
+        </div>
+
+        <div class="content">
+            <div class="control-panel">
+                <div class="input-group">
+                    <label for="wsUrl">WebSocket URL</label>
+                    <input type="text" id="wsUrl" value="ws://localhost:3000" placeholder="ws://localhost:3000">
+                </div>
+                <div class="input-group">
+                    <label for="userId">User ID (Optional)</label>
+                    <input type="text" id="userId" placeholder="user123">
+                </div>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-connect" id="connectBtn">Connect</button>
+                <button class="btn-disconnect" id="disconnectBtn" disabled>Disconnect</button>
+                <button class="btn-clear" id="clearBtn">Clear Log</button>
+            </div>
+
+            <div class="test-actions">
+                <h3>📤 Test Actions</h3>
+                <button class="test-btn" id="testOrder" disabled>Create Test Order</button>
+                <button class="test-btn" id="testInventory" disabled>Update Inventory</button>
+                <button class="test-btn" id="testPayment" disabled>Process Payment</button>
+                <button class="test-btn" id="testNotif" disabled>Send Notification</button>
+            </div>
+
+            <div class="messages" id="messages"></div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="value" id="sentCount">0</div>
+                    <div class="label">Messages Sent</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="receivedCount">0</div>
+                    <div class="label">Messages Received</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="errorCount">0</div>
+                    <div class="label">Errors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="uptime">00:00</div>
+                    <div class="label">Connected Time</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let sentCount = 0;
+        let receivedCount = 0;
+        let errorCount = 0;
+        let connectTime = null;
+        let uptimeInterval = null;
+
+        const elements = {
+            status: document.getElementById('status'),
+            messages: document.getElementById('messages'),
+            connectBtn: document.getElementById('connectBtn'),
+            disconnectBtn: document.getElementById('disconnectBtn'),
+            clearBtn: document.getElementById('clearBtn'),
+            wsUrl: document.getElementById('wsUrl'),
+            userId: document.getElementById('userId'),
+            testOrder: document.getElementById('testOrder'),
+            testInventory: document.getElementById('testInventory'),
+            testPayment: document.getElementById('testPayment'),
+            testNotif: document.getElementById('testNotif'),
+            sentCountEl: document.getElementById('sentCount'),
+            receivedCountEl: document.getElementById('receivedCount'),
+            errorCountEl: document.getElementById('errorCount'),
+            uptimeEl: document.getElementById('uptime')
+        };
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.innerHTML = `<span class="timestamp">[${timestamp}]</span>${message}`;
+            elements.messages.appendChild(div);
+            elements.messages.scrollTop = elements.messages.scrollHeight;
+        }
+
+        function updateStats() {
+            elements.sentCountEl.textContent = sentCount;
+            elements.receivedCountEl.textContent = receivedCount;
+            elements.errorCountEl.textContent = errorCount;
+        }
+
+        function updateUptime() {
+            if (connectTime) {
+                const elapsed = Math.floor((Date.now() - connectTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                elements.uptimeEl.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+            }
+        }
+
+        function setConnected(connected) {
+            if (connected) {
+                elements.status.textContent = '● CONNECTED';
+                elements.status.className = 'status connected';
+                elements.connectBtn.disabled = true;
+                elements.disconnectBtn.disabled = false;
+                elements.testOrder.disabled = false;
+                elements.testInventory.disabled = false;
+                elements.testPayment.disabled = false;
+                elements.testNotif.disabled = false;
+                connectTime = Date.now();
+                uptimeInterval = setInterval(updateUptime, 1000);
+            } else {
+                elements.status.textContent = '● DISCONNECTED';
+                elements.status.className = 'status disconnected';
+                elements.connectBtn.disabled = false;
+                elements.disconnectBtn.disabled = true;
+                elements.testOrder.disabled = true;
+                elements.testInventory.disabled = true;
+                elements.testPayment.disabled = true;
+                elements.testNotif.disabled = true;
+                if (uptimeInterval) {
+                    clearInterval(uptimeInterval);
+                    uptimeInterval = null;
+                }
+                connectTime = null;
+                elements.uptimeEl.textContent = '00:00';
+            }
+        }
+
+        function connect() {
+            const url = elements.wsUrl.value.trim();
+            const userId = elements.userId.value.trim();
+            
+            const fullUrl = userId ? `${url}?userId=${userId}` : url;
+            
+            log(`🔄 Connecting to ${fullUrl}...`, 'info');
+            
+            try {
+                ws = new WebSocket(fullUrl);
+                
+                ws.onopen = () => {
+                    log('✅ Connected successfully!', 'received');
+                    setConnected(true);
+                };
+                
+                ws.onmessage = (event) => {
+                    receivedCount++;
+                    updateStats();
+                    try {
+                        const data = JSON.parse(event.data);
+                        log(`📥 Received: ${JSON.stringify(data, null, 2)}`, 'received');
+                    } catch {
+                        log(`📥 Received: ${event.data}`, 'received');
+                    }
+                };
+                
+                ws.onerror = (error) => {
+                    errorCount++;
+                    updateStats();
+                    log(`❌ WebSocket error occurred`, 'error');
+                    console.error('WebSocket error:', error);
+                };
+                
+                ws.onclose = (event) => {
+                    log(`🔌 Connection closed (Code: ${event.code}, Reason: ${event.reason || 'None'})`, 'info');
+                    setConnected(false);
+                    ws = null;
+                };
+                
+            } catch (error) {
+                errorCount++;
+                updateStats();
+                log(`❌ Connection failed: ${error.message}`, 'error');
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                log('🔌 Disconnecting...', 'info');
+                ws.close();
+            }
+        }
+
+        function sendMessage(data) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                sentCount++;
+                updateStats();
+                const message = JSON.stringify(data);
+                ws.send(message);
+                log(`📤 Sent: ${JSON.stringify(data, null, 2)}`, 'sent');
+            } else {
+                log('❌ Not connected!', 'error');
+            }
+        }
+
+        // Event listeners
+        elements.connectBtn.addEventListener('click', connect);
+        elements.disconnectBtn.addEventListener('click', disconnect);
+        elements.clearBtn.addEventListener('click', () => {
+            elements.messages.innerHTML = '';
+            log('🧹 Log cleared', 'info');
+        });
+
+        elements.testOrder.addEventListener('click', () => {
+            sendMessage({
+                type: 'order',
+                action: 'create',
+                data: {
+                    orderId: `ORD-${Date.now()}`,
+                    items: [
+                        { productId: 1, quantity: 2 },
+                        { productId: 2, quantity: 1 }
+                    ],
+                    total: 299.99
+                }
+            });
+        });
+
+        elements.testInventory.addEventListener('click', () => {
+            sendMessage({
+                type: 'inventory',
+                action: 'update',
+                data: {
+                    productId: 1,
+                    quantity: Math.floor(Math.random() * 100),
+                    timestamp: new Date().toISOString()
+                }
+            });
+        });
+
+        elements.testPayment.addEventListener('click', () => {
+            sendMessage({
+                type: 'payment',
+                action: 'process',
+                data: {
+                    paymentId: `PAY-${Date.now()}`,
+                    amount: 299.99,
+                    method: 'credit_card',
+                    status: 'processing'
+                }
+            });
+        });
+
+        elements.testNotif.addEventListener('click', () => {
+            sendMessage({
+                type: 'notification',
+                action: 'send',
+                data: {
+                    title: 'Test Notification',
+                    message: 'This is a test notification from WebSocket client',
+                    priority: 'high'
+                }
+            });
+        });
+
+        // Initial log
+        log('💡 Ready to connect. Click "Connect" to start.', 'info');
+    </script>
+</body>
+</html>
